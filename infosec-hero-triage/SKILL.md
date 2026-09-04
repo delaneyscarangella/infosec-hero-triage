@@ -123,11 +123,23 @@ and stricter:
 - Alert **only** on: a genuinely new inbound item, or an apparent active incident.
   No approaching/breached stages, no tentative pings — chatter waits for morning.
 - Each alert states the real deadline: `clock starts 9:00am → ack by 11:00am`.
-- Alert delivery off-hours = macOS banner **plus a Slack DM to the Hero themself** (the
-  phone channel — Slack mobile handles the notification). Resolve the DM target once per
-  shift: `slack_search_users` for the current user (they are the authenticated account),
-  then `slack_send_message` with their user ID as `channel_id`. One line, same content as
-  the push message, with the source link. Never DM anyone else, never post in a channel.
+- Alert delivery off-hours = macOS banner **plus a Slack DM to the Hero via their alert
+  webhook** (the phone channel). A plain Slack DM-to-self does NOT work — Slack never
+  push-notifies you about your own messages — so alerts go through a Slack Workflow
+  webhook whose bot message does notify. The Hero's webhook URL lives in
+  `~/.claude/hero-slack-webhook.url` (chmod 600; it is a capability URL — treat it as a
+  credential, never commit or print it). Send with:
+
+  ```bash
+  curl -s -X POST "$(cat ~/.claude/hero-slack-webhook.url)" \
+    -H 'Content-Type: application/json' -d '{"text":"<one-line alert with source link>"}'
+  ```
+
+  If the file is missing, fall back to emailing the user at their own address via Gmail
+  `send_message` (subject = the alert line), and tell them once how to set up the webhook
+  (Slack Workflow Builder → trigger "From a webhook" with a `text` variable → step "Send a
+  message" to themselves → publish → save the URL to that path). Never message anyone
+  else, never post in a channel.
 - Quiet off-hours runs print the one-line 🟢 board and send nothing anywhere.
 - Active incidents (executed wire fraud, confirmed compromise, ongoing attack) ignore all
   of this: banner + DM + push immediately, any hour.

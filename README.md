@@ -9,8 +9,8 @@ and — when you start a shift with **"Avengers Assemble"** — arms a recurring
 **only on change** (new unacked item, 30-min SLA warning, breach,
 apparent incident). Alerts arrive three ways: terminal push, a banner-first board, and a
 native macOS Notification Center banner with distinct sounds for normal vs. breach.
-Off-hours alerts also arrive as a Slack DM to yourself, so your phone buzzes via the
-Slack app. Off-hours there's no SLA ladder — the 2-business-hour clock starts at 9am.
+Off-hours alerts also arrive as a Slack DM on your phone — via a personal Slack
+Workflow webhook, because a plain DM-to-self never triggers a Slack notification. Off-hours there's no SLA ladder — the 2-business-hour clock starts at 9am.
 
 It never sends anything on your behalf — it drafts replies and recommends actions; the
 Hero sends.
@@ -33,6 +33,12 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
   so mail to security@ must be visible in your own Gmail (it is for InfoSec team members).
 - **Membership in #support-security** (private channel) — the Slack connector can only
   read channels your account is in.
+- For phone alerts: a personal Slack Workflow webhook — in Slack: Tools → Workflow
+  Builder → New Workflow → trigger "From a webhook" (add a Text variable named `text`) →
+  step "Send a message" to yourself → Publish. Save the generated
+  `hooks.slack.com/triggers/...` URL to `~/.claude/hero-slack-webhook.url` and
+  `chmod 600` it. Treat the URL like a credential (anyone holding it can DM you); never
+  commit it. Without it, alerts fall back to email-to-self.
 - For overnight coverage: the Mac must stay awake — plug in and enable System Settings →
   Battery → "Prevent automatic sleeping on power adapter when the display is off"
   (or run `caffeinate -is`).
