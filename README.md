@@ -4,10 +4,13 @@ A Claude Code skill that runs the daily InfoSec Hero escalation triage: it sweep
 security@ mailbox, #security, and #support-security, builds a triage board where every
 item links back to its source, tracks the 2-business-hour ack SLA per the
 [InfoSec Hero Guidelines](https://docs.google.com/document/d/1pt0KOg27TEVSv_V14zZx-OOupNWcYf-gwg8r4WJcWqI/edit),
-and — when you start a shift with **"Avengers Assemble"** — arms a 15-minute recurring
-watch that notifies **only on change** (new unacked item, 30-min SLA warning, breach,
+and — when you start a shift with **"Avengers Assemble"** — arms a recurring watch
+(every 15 min during business hours, every 30 min nights and weekends) that notifies
+**only on change** (new unacked item, 30-min SLA warning, breach,
 apparent incident). Alerts arrive three ways: terminal push, a banner-first board, and a
 native macOS Notification Center banner with distinct sounds for normal vs. breach.
+Off-hours alerts also arrive as a Slack DM to yourself, so your phone buzzes via the
+Slack app. Off-hours there's no SLA ladder — the 2-business-hour clock starts at 9am.
 
 It never sends anything on your behalf — it drafts replies and recommends actions; the
 Hero sends.
@@ -30,6 +33,9 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
   so mail to security@ must be visible in your own Gmail (it is for InfoSec team members).
 - **Membership in #support-security** (private channel) — the Slack connector can only
   read channels your account is in.
+- For overnight coverage: the Mac must stay awake — plug in and enable System Settings →
+  Battery → "Prevent automatic sleeping on power adapter when the display is off"
+  (or run `caffeinate -is`).
 - macOS for the Notification Center banners (`osascript` — built in, nothing to install).
   On first use, allow notifications for your terminal app if prompted
   (System Settings → Notifications).
@@ -38,7 +44,7 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
 
 | You say | It does |
 |---|---|
-| `Avengers Assemble` | Full triage board + arms the 15-min watch (weekdays 9:07am–4:52pm) |
+| `Avengers Assemble` | Full triage board + arms the watch (15-min weekdays 9am–5pm, 30-min nights/weekends) |
 | `run hero triage` / `pull the security queue` | One-off sweep, no watch |
 | `show board` | Reprints the full three-section board mid-shift |
 | `that's informational` (about an item) | Reclassifies it, cancels its SLA clock and pending pings |

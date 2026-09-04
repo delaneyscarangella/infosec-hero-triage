@@ -16,6 +16,8 @@ Pull the live escalation queue across all Hero channels, classify every item per
 [InfoSec Hero Guidelines](https://docs.google.com/document/d/1pt0KOg27TEVSv_V14zZx-OOupNWcYf-gwg8r4WJcWqI/edit),
 and produce a triage board where every item links back to its source. **Never send any
 reply, email, or Slack message automatically** — recommend and draft only; the Hero sends.
+The single exception: a **Slack DM to the Hero themself** as an alert channel (see
+off-hours discipline below) — that is a notification to the user, not a reply to anyone.
 
 ## Step 0 — Arm the recurring watch (on "Avengers Assemble" only)
 
@@ -23,7 +25,7 @@ When the user opens with **"Avengers Assemble"** (any capitalization), they are 
 Hero shift, not asking for a one-off sweep. Do both, in this order:
 
 1. **Run the full triage now** (Steps 1–5 below) so they start the shift with a current board.
-2. **Arm the recurring watch** with `CronCreate`:
+2. **Arm the business-hours watch** with `CronCreate`:
    - `cron`: `7,22,37,52 9-16 * * 1-5` — every 15 minutes, 9:07am through 4:52pm, weekdays.
      The off-minutes are deliberate (they keep the job off the :00/:15/:30/:45 marks every
      other scheduled job in the world lands on); do not "tidy" them.
@@ -33,9 +35,22 @@ Hero shift, not asking for a one-off sweep. Do both, in this order:
      unacked item, an item newly inside 30 minutes of its 2-business-hour deadline, an item
      newly breaching it, or an apparent active incident. Do not re-notify about items already
      reported earlier this shift. If nothing changed, print the board and stay silent.`
-   - Report the returned job ID back to the user and keep it for Step 0b.
-3. **Tell them plainly** that the watch is session-only: it dies when this Claude Code session
-   closes, so it needs re-arming next shift. Do not imply it survives a restart.
+3. **Arm the off-hours watch** (nights + weekends, every 30 minutes) with two more
+   `CronCreate` jobs so the windows don't overlap:
+   - Nights, all days: `cron`: `9,39 0-8,17-23 * * *`
+   - Weekend daytime: `cron`: `9,39 9-16 * * 0,6`
+   - `recurring`: `true` on both, and the same prompt for both:
+     `Run the infosec-hero-triage skill as an OFF-HOURS Hero check. Narrow sweep of all
+     three channels. Follow the off-hours discipline in the skill: alert ONLY on a genuinely
+     new inbound item or an apparent active incident — no SLA ladder, no clocks. On an alert,
+     send the macOS banner AND a Slack DM to the Hero themself. If nothing new, print the
+     one-line quiet board and stay silent.`
+4. Report all returned job IDs back to the user and keep them for Step 0b.
+5. **Tell them plainly**: the watch is session-only (dies when this Claude Code session
+   closes — re-arm each morning with "Avengers Assemble"), and overnight coverage also
+   requires the Mac to stay awake: plugged in, with System Settings → Battery →
+   "Prevent automatic sleeping on power adapter when the display is off" enabled
+   (or `caffeinate -is` running). Remind them of this once per shift, not every run.
 
 Any other trigger phrase ("run hero triage", "pull the security queue", etc.) means a one-off
 sweep — run Steps 1–5 and do **not** arm anything.
@@ -43,9 +58,9 @@ sweep — run Steps 1–5 and do **not** arm anything.
 ### Step 0b — Stopping
 
 When the user says **stop**, **stand down**, **Avengers disassemble**, **end shift**, or
-otherwise indicates the shift is over: call `CronList` to find the job, `CronDelete` it by ID,
-and confirm in one line that the watch is off. If no job is armed, say so rather than
-pretending to cancel one.
+otherwise indicates the shift is over: call `CronList` to find **all** hero jobs (business
+hours + both off-hours jobs), `CronDelete` each by ID, and confirm in one line that the
+watch is off. If no jobs are armed, say so rather than pretending to cancel one.
 
 Then **print the EOD closeout checklist** (doc step 5) from the shift ledger — this is
 automatic on stand-down, not optional:
@@ -98,6 +113,25 @@ clear or that a run completed.
 
 Keep the message under 200 characters, one line, no markdown, leading with the thing to act on:
 `2 unacked, oldest 1h50m: ORTC wire question in #support-security`. Not `triage complete`.
+
+### Off-hours discipline (nights and weekends)
+
+Outside business hours the SLA clock is not running — an item that lands at 11pm has its
+2-business-hour clock start at 9am the next business day. So off-hours runs are simpler
+and stricter:
+
+- Alert **only** on: a genuinely new inbound item, or an apparent active incident.
+  No approaching/breached stages, no tentative pings — chatter waits for morning.
+- Each alert states the real deadline: `clock starts 9:00am → ack by 11:00am`.
+- Alert delivery off-hours = macOS banner **plus a Slack DM to the Hero themself** (the
+  phone channel — Slack mobile handles the notification). Resolve the DM target once per
+  shift: `slack_search_users` for the current user (they are the authenticated account),
+  then `slack_send_message` with their user ID as `channel_id`. One line, same content as
+  the push message, with the source link. Never DM anyone else, never post in a channel.
+- Quiet off-hours runs print the one-line 🟢 board and send nothing anywhere.
+- Active incidents (executed wire fraud, confirmed compromise, ongoing attack) ignore all
+  of this: banner + DM + push immediately, any hour.
+- Slack-DM alerts also apply during business hours for **incident-stage** items only.
 
 **Every push also posts a native macOS banner** so it lands even when the terminal is
 buried. Run via Bash, same discipline (only on stage crossings, never on quiet runs):
