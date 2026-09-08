@@ -1,8 +1,9 @@
 # InfoSec Hero Triage — Claude Code skill ("Avengers Assemble")
 
 A Claude Code skill that runs the daily InfoSec Hero escalation triage: it sweeps the
-security@ mailbox, #security, and #support-security, builds a triage board where every
-item links back to its source, tracks the 2-business-hour ack SLA per the
+security@ mailbox, #security, #support-security, and #idr-alerts (Rapid7 SIEM
+investigations posted by InsightConnect), builds a triage board where every item links
+back to its source, tracks the 2-business-hour ack SLA per the
 [InfoSec Hero Guidelines](https://docs.google.com/document/d/1pt0KOg27TEVSv_V14zZx-OOupNWcYf-gwg8r4WJcWqI/edit),
 and — when you start a shift with **"Avengers Assemble"** — arms a recurring watch
 (every 15 min during business hours, every 30 min nights and weekends) that notifies
@@ -31,8 +32,8 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
   Slack workspace.
 - **Delegated access to the security@qualia.com mailbox** — the Gmail sweep runs as you,
   so mail to security@ must be visible in your own Gmail (it is for InfoSec team members).
-- **Membership in #support-security** (private channel) — the Slack connector can only
-  read channels your account is in.
+- **Membership in #support-security and #idr-alerts** (both private) — the Slack
+  connector can only read channels your account is in.
 - For phone alerts: a personal Slack Workflow webhook — in Slack: Tools → Workflow
   Builder → New Workflow → trigger "From a webhook" (add a Text variable named `text`) →
   step "Send a message" to yourself → Publish. Save the generated
@@ -67,6 +68,11 @@ fire while the session is open.
   (new → under-30-min → breached), plus immediately for anything that looks like an
   active incident. Borderline #security posts are marked 🟠 tentative and don't start an
   SLA clock until you confirm they're real escalations.
+- #idr-alerts works differently: there is no requester to reply to, so per the Guidelines
+  the ack is an **emoji reaction** on the alert once you've looked at it. A bare alert is
+  unacked. Overnight, only CRITICAL alerts and host/data detections (Defender, GuardDuty,
+  malware, exfiltration, tunnels) ping your phone; noisy "Ingress Auth From Outside The
+  US" alerts wait for the morning board.
 
 ## Cautions
 

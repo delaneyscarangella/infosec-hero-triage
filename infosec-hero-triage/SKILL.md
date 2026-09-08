@@ -5,9 +5,9 @@ description: >
   skill when the user says "Avengers Assemble" (any capitalization), or asks to "run hero
   triage", "pull the security queue", "check my hero channels", "what's in the security
   inbox", "triage today's escalations", or anything similar about the InfoSec Hero rotation,
-  security@ email queue, #security, or #support-security. The goal: every inbound escalation
-  is looked at and acknowledged within 2 business hours, with each item linked back to its
-  source so it's traceable.
+  security@ email queue, #security, #support-security, or #idr-alerts (Rapid7 SIEM). The goal:
+  every inbound escalation is looked at and acknowledged within 2 business hours, with each
+  item linked back to its source so it's traceable.
 ---
 
 # InfoSec Hero Daily Triage ("Avengers Assemble")
@@ -30,7 +30,7 @@ Hero shift, not asking for a one-off sweep. Do both, in this order:
      The off-minutes are deliberate (they keep the job off the :00/:15/:30/:45 marks every
      other scheduled job in the world lands on); do not "tidy" them.
    - `recurring`: `true`
-   - `prompt`: `Run the infosec-hero-triage skill as a scheduled Hero check. Sweep all three
+   - `prompt`: `Run the infosec-hero-triage skill as a scheduled Hero check. Sweep all four
      channels. Notify only on CHANGE per the notification discipline in the skill — a new
      unacked item, an item newly inside 30 minutes of its 2-business-hour deadline, an item
      newly breaching it, or an apparent active incident. Do not re-notify about items already
@@ -41,7 +41,7 @@ Hero shift, not asking for a one-off sweep. Do both, in this order:
    - Weekend daytime: `cron`: `9,39 9-16 * * 0,6`
    - `recurring`: `true` on both, and the same prompt for both:
      `Run the infosec-hero-triage skill as an OFF-HOURS Hero check. Narrow sweep of all
-     three channels. Follow the off-hours discipline in the skill: alert ONLY on a genuinely
+     four channels. Follow the off-hours discipline in the skill: alert ONLY on a genuinely
      new inbound item or an apparent active incident — no SLA ladder, no clocks. On an alert,
      send the macOS banner AND a Slack DM to the Hero themself. If nothing new, print the
      one-line quiet board and stay silent.`
@@ -71,6 +71,7 @@ automatic on stand-down, not optional:
 - [ ] Jira → Done: <every ticket the ledger marked ready to close>
 - [ ] <open containment / follow-up actions on in-motion items>
 - [ ] Unanswered requesters: <anyone the team asked a question and never heard back from>
+- [ ] #idr-alerts: every alert since the previous business day carries a reaction (<list any still bare>)
 - [ ] kb: add lessons for <today's new SEC tickets>, rebuild
 Then: archive? (y/n)
 ```
@@ -122,6 +123,12 @@ and stricter:
 
 - Alert **only** on: a genuinely new inbound item, or an apparent active incident.
   No approaching/breached stages, no tentative pings — chatter waits for morning.
+- **#idr-alerts off-hours:** the bot posts around the clock, so not every alert is a phone
+  ping. Alert on `CRITICAL` priority, and on any `HIGH` whose title points at a host or
+  data (Defender for Endpoint, GuardDuty, malware/process/exfiltration/tunnel titles).
+  `Ingress Auth From Outside The US` is known-noisy (mostly token refresh and approved
+  travel, see ISEC-2838) — off-hours it goes on the morning board only, no ping, unless
+  the first thread reply shows a Red-list country or a non-employee account.
 - Each alert states the real deadline: `clock starts 9:00am → ack by 11:00am`.
 - Alert delivery off-hours = macOS banner **plus a Slack DM to the Hero via their alert
   webhook** (the phone channel). A plain Slack DM-to-self does NOT work — Slack never
@@ -241,7 +248,7 @@ The Hero role is not on-call. Compute the window from today's date:
 - Always also sweep for older items with **no pickup signal** (see Step 3) — those have
   fallen through the cracks and outrank new arrivals.
 
-## Step 2 — Pull all three channels (live data, every run)
+## Step 2 — Pull all four channels (live data, every run)
 
 **Opening sweep** (shift start, or any one-off run):
 
@@ -250,6 +257,7 @@ The Hero role is not on-call. Compute the window from today's date:
 | Email security@qualia.com | Gmail `search_threads` with query `to:security@qualia.com newer_than:3d` (use `newer_than:5d` on Mondays). For any thread needing classification detail, `get_message` with `PLAIN_TEXT`. |
 | Slack #security (public) | `slack_read_channel` on channel ID `C0G8KAJQY` (verify with `slack_search_channels` if not found). |
 | Slack #support-security (private) | `slack_read_channel` on channel ID `C030HNH43UN`. |
+| Slack #idr-alerts (private, Rapid7 SIEM) | `slack_read_channel` on channel ID `C0A8MC1NL9Z`, `detailed` format so the `Reactions:` line is present. Every post is from the **Rapid7 InsightConnect** bot: `Priority`, `Title`, investigation RRN, alert count, and an "Open Investigation" link. The bot's own thread replies hold the evidence and are long — read with `slack_read_thread` `limit` 2 (parent + first reply) and pull only the **Users** (name, email) or **Assets** (hostname) block plus, for ingress alerts, `geoip_country_name`, `service`, and `source_ip`. Never paste the evidence dump into the board. |
 
 **Scheduled runs after the opening sweep — narrow the pull.** The full 3-day window is
 mostly identical data every 15 minutes. Instead:
@@ -264,7 +272,9 @@ mostly identical data every 15 minutes. Instead:
 
 Use `detailed` response format on Slack reads so you get `Message TS` and thread reply
 counts. Read the threads (`slack_read_thread`) of every message in the window whose reply
-count changed — pickup status lives in the replies.
+count changed — pickup status lives in the replies. For #idr-alerts the reply count is
+bot-generated and never changes; pickup status lives in the **`Reactions:` line** of the
+parent, so re-read the channel (not the thread) to detect a pickup.
 
 ## Step 3 — Determine pickup status per item
 
@@ -275,6 +285,12 @@ An item is **picked up** only on a positive signal:
 
 A 👀 reaction, a "thanks", or the requester's own follow-ups do **not** count. Per the
 Guidelines doc, the Hero retains ownership until handoff is positively confirmed.
+
+**#idr-alerts is the one exception to the reaction rule.** The Guidelines say alerts there
+are marked with an emoji once they've been looked into, so for that channel **any reaction
+on the parent message from a team member IS the pickup signal** (the InsightConnect bot
+never reacts). A human reply in the thread or a linked SEC/ISEC ticket also counts. The
+bot's own thread replies never count. A bare alert (no `Reactions:` line) is unacked.
 
 Compute **age against the 2-business-hour clock** (clock starts when the message landed,
 or at start of business day if it landed after hours / on a weekend). Flag anything
@@ -293,6 +309,19 @@ immediately (doc step 2.1.2), regardless of channel. Then:
 | Slack | Due diligence / vendor review | Tell user to email compliance@qualia.com (2.2.1) |
 | Slack | Confidently answerable | Answer **in a thread** (2.2.2) |
 | Slack | Needs investigation | Ack **in a thread**: received + being looked into (2.2.3) |
+
+**#idr-alerts** items have no requester to reply to; the "ack" is the emoji reaction after a
+look at the investigation. Classify by title, using the first thread reply for who/what:
+
+| Title pattern | Read as | Recommended first action |
+|---|---|---|
+| `Ingress Auth From Outside The US` | Employee sign-in from abroad. Usually approved travel or token refresh (ISEC-2838 context). | Check the account against OCW approvals (ISEC tickets / #security travel questions). Green-list country + known employee → react and move on. Red/Amber country, non-employee account, or password-only auth → investigate. |
+| `Microsoft Defender for Endpoint - …`, `Amazon GuardDuty - …`, `Suspicious Process …`, exfiltration / tunnel / malware titles (e.g. `NGROK server creation`) | Endpoint or cloud detection on a named host or user. | Open the investigation, identify the host/user, check EDR for the process or URL named in the evidence. Treat as **incident-stage** only when the evidence shows execution, exfiltration, or credential theft actually happened, not merely a detection. |
+| `CRITICAL` priority, any title | Highest urgency. | Same as above, but it gets the incident-stage push immediately regardless of clock. |
+
+If the Rapid7 MCP server is connected, `insightidr_get_investigation` on the RRN adds
+status and assignee; if it is down (common), the Slack thread is sufficient — do not
+block on it.
 
 Also flag, per step 3–4 of the doc:
 - Looks like an **active incident** (executed wire fraud, confirmed compromise, ongoing
@@ -324,6 +353,8 @@ Then a one-line **bottom line**: what needs the Hero within the next hour.
   (e.g. ts `1787352135.175549` → `p1787352135175549`)
 - Gmail thread: `https://mail.google.com/mail/u/0/#all/<threadId>`
 - Jira: `https://qualialabs.atlassian.net/browse/<KEY>`
+- #idr-alerts item: the Slack permalink **and** the "Open Investigation" Rapid7 link from
+  the post, side by side. Show `Priority · Title · user or host · country (ingress only)`.
 - Also carry through any Zendesk/deployment links the reporter included.
 
 ## Step 6 — Offer, don't act
@@ -336,7 +367,14 @@ frame recommendations for handoff (post in #infosec-private) rather than direct 
 ## Edge cases
 
 - A Slack channel read fails with `channel_not_found` → re-resolve the ID via
-  `slack_search_channels` (names: `security`, `support-security`) before giving up.
+  `slack_search_channels` (names: `security`, `support-security`, `idr-alerts`) before
+  giving up. #idr-alerts is private; the Hero must be a member for the read to work.
+- #idr-alerts evidence threads contain employee names, emails, hostnames, IPs, and user
+  SIDs. Summarize to the level of "Andy S., Okta, Mexico" on the board; never repeat raw
+  evidence blocks, and never move them to unapproved tools.
+- The emoji convention on #idr-alerts is new (added to the Guidelines Sep 2026). Alerts
+  older than the current shift window that lack a reaction are **not** automatically
+  breaches — list them once at shift start as "unmarked backlog" and let the Hero decide.
 - Zero new items → still run the unacknowledged-item sweep and say explicitly that the
   queue is clear, listing the newest item checked per channel with its link.
 - #security is high-noise (articles, chatter): only treat messages as escalations if they
