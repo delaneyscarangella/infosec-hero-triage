@@ -19,6 +19,15 @@ reply, email, or Slack message automatically** — recommend and draft only; the
 The single exception: a **Slack DM to the Hero themself** as an alert channel (see
 off-hours discipline below) — that is a notification to the user, not a reply to anyone.
 
+**Guardrail — never quote raw detection strings in commands or notifications.** Every shell
+command you run is logged by EDR and matched against the same detection rules that feed
+#idr-alerts. Summarize alerts by **rule name and user/host** ("NGROK rule, Jason L.'s
+laptop"), never by copying command lines, tool names, file hashes, domains, or other IOCs
+into a Bash argument, banner, push, or webhook body. Searching for "mimikatz" in a shell,
+echoing a suspicious URL, or grepping for a binary name will trip a rule and page the team
+on the Hero's own machine (this happened 2026-09-08). If an IOC must leave the board, put it
+in a file with the Write tool, not on a command line.
+
 ## Step 0 — Arm the recurring watch (on "Avengers Assemble" only)
 
 When the user opens with **"Avengers Assemble"** (any capitalization), they are starting a
