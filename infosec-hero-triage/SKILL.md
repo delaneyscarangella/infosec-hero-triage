@@ -372,9 +372,10 @@ frame recommendations for handoff (post in #infosec-private) rather than direct 
 - #idr-alerts evidence threads contain employee names, emails, hostnames, IPs, and user
   SIDs. Summarize to the level of "Andy S., Okta, Mexico" on the board; never repeat raw
   evidence blocks, and never move them to unapproved tools.
-- The emoji convention on #idr-alerts is new (added to the Guidelines Sep 2026). Alerts
-  older than the current shift window that lack a reaction are **not** automatically
-  breaches — list them once at shift start as "unmarked backlog" and let the Hero decide.
+- The emoji convention on #idr-alerts is new (added to the Guidelines Sep 2026). Only
+  alerts posted **after the Hero starts tracking the channel** get a clock or a ping.
+  Anything already sitting there unmarked is backlog: mention it once, don't chase it,
+  and drop it entirely if the Hero says so.
 - Zero new items → still run the unacknowledged-item sweep and say explicitly that the
   queue is clear, listing the newest item checked per channel with its link.
 - #security is high-noise (articles, chatter): only treat messages as escalations if they
