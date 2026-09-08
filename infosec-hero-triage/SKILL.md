@@ -139,7 +139,9 @@ and stricter:
 
   ```bash
   curl -s -X POST "$(cat ~/.claude/hero-slack-webhook.url)" \
-    -H 'Content-Type: application/json' -d '{"text":"<one-line alert with source link>"}'
+    -H 'Content-Type: application/json' -d @- <<'EOF'
+  {"text":"<one-line alert with source link>"}
+  EOF
   ```
 
   If the file is missing, fall back to emailing the user at their own address via Gmail
@@ -153,16 +155,25 @@ and stricter:
 - Slack-DM alerts also apply during business hours for **incident-stage** items only.
 
 **Every push also posts a native macOS banner** so it lands even when the terminal is
-buried. Run via Bash, same discipline (only on stage crossings, never on quiet runs):
+buried. Run via Bash, same discipline (only on stage crossings, never on quiet runs).
+**Feed the script to osascript on stdin, never as a `-e` argument:** EDR logs every
+process command line, and a banner that quotes an alert ("ngrok tunnel started…") will
+re-trigger the very detection rule that fired (this happened on 2026-09-08 — the Hero's
+own Mac raised a second `NGROK server creation` investigation). With stdin the logged
+command line is just `osascript -`, and the text never touches process telemetry:
 
 ```bash
-osascript -e 'display notification "<same one-line message>" with title "InfoSec Hero" subtitle "<stage: New unacked | Under 30 min | BREACHED | INCIDENT>" sound name "Ping"'
+osascript - <<'EOF'
+display notification "<same one-line message>" with title "InfoSec Hero" subtitle "<stage: New unacked | Under 30 min | BREACHED | INCIDENT>" sound name "Ping"
+EOF
 ```
 
 Escape any double quotes in the message. For a breach or incident use sound name "Sosumi"
 instead of "Ping" so it's audibly different. If osascript errors or the banner doesn't
 appear, mention once that the terminal app may need Notification permission
-(System Settings → Notifications) — don't retry repeatedly.
+(System Settings → Notifications) — don't retry repeatedly. The same rule applies to the
+Slack webhook `curl`: pass the JSON body with `-d @-` from a heredoc, not inline, so
+tool names in the alert text stay out of the command line.
 
 ### Scheduled-run output format (the board in the terminal)
 
