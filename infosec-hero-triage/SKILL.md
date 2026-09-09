@@ -190,14 +190,28 @@ The terminal renders markdown, not ANSI color — emoji + headers are the color.
 hierarchy: 🟢 quiet · 🔵/✅ FYI change · 🟠 tentative or warning · 🔴/⛔ act now. Anything
 red/stop also gets a push; everything else is board-only. Use exactly these shapes:
 
-**Quiet run (nothing changed)** — the entire output is ONE line, no headers, no sections:
+**Quiet run (nothing changed)** — the entire output is ONE line, no headers, no sections.
+🟢 is reserved for **zero unanswered items**:
 
 ```markdown
 🟢 **12:22pm** — no change · 0 unacked · in motion: SEC-1515 (you), Grace L. (Daniel)
 ```
 
-If a clock is ticking, keep it visible in the same line:
-`🟢 12:22pm — no change · ⏱ Marlon unacked, 1h20m left (1:42pm)`
+**If anything is still unanswered, the line is 🟠 and the unanswered item comes first**, with
+who, what, where, its deadline, and the link — every run until it is acked. Never tuck an
+open item into a green line as a trailing clause; the Hero has to be able to see it at a
+glance in a wall of quiet lines:
+
+```markdown
+🟠 **12:22pm** — ⏳ UNANSWERED: Marlon · Fig Title data exposure · #support-security · 1h20m left (1:42pm) → [jump](<link>) · nothing else new · in motion: SEC-1515 (you)
+```
+
+Off-hours the same rule applies, with the morning deadline spelled out:
+`🟠 11:39pm — ⏳ UNANSWERED: Duncan · SOC 2 sharing request · #security · clock starts 9:00am, ack by 11:00am → [jump](<link>) · nothing else new`
+
+Two or more unanswered items: list each on its own ⏳ line under the 🟠 header line, oldest
+first. This is still a quiet run (no push, no banner) — it is repetition on the board only,
+which is cheap; the notification discipline is about pings, not about visibility.
 
 **New escalation (confirmed)** — banner first, everything else below a divider:
 
