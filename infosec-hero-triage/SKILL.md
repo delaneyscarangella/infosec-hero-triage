@@ -322,9 +322,14 @@ Guidelines doc, the Hero retains ownership until handoff is positively confirmed
 
 **#idr-alerts is the one exception to the reaction rule.** The Guidelines say alerts there
 are marked with an emoji once they've been looked into, so for that channel **any reaction
-on the parent message from a team member IS the pickup signal** (the InsightConnect bot
-never reacts). A human reply in the thread or a linked SEC/ISEC ticket also counts. The
-bot's own thread replies never count. A bare alert (no `Reactions:` line) is unacked.
+on the parent message from a team member IS the pickup signal** — the Hero picks whatever
+emoji they like; there is no required one (the InsightConnect bot never reacts). A human
+reply in the thread or a linked SEC/ISEC ticket also counts. The bot's own thread replies
+never count. A bare alert (no `Reactions:` line) is treated as unacked **until the Hero
+says otherwise**: the Slack connector has not been reliably surfacing reactions on these
+bot posts, so when the Hero states an alert is acknowledged, record it as acked and drop it
+from the unanswered line. Do not keep flagging the missing `Reactions:` line as a
+discrepancy — say it once per shift at most, or not at all.
 
 Compute **age against the 2-business-hour clock** (clock starts when the message landed,
 or at start of business day if it landed after hours / on a weekend). Flag anything
