@@ -6,12 +6,17 @@ investigations posted by InsightConnect), builds a triage board where every item
 back to its source, tracks the 2-business-hour ack SLA per the
 [InfoSec Hero Guidelines](https://docs.google.com/document/d/1pt0KOg27TEVSv_V14zZx-OOupNWcYf-gwg8r4WJcWqI/edit),
 and — when you start a shift with **"Avengers Assemble"** — arms a recurring watch
-(every 15 min during business hours, every 30 min nights and weekends) that notifies
+(every 15 min, weekdays, until you say **disassemble**) that notifies
 **only on change** (new unacked item, 30-min SLA warning, breach,
 apparent incident). Alerts arrive three ways: terminal push, a banner-first board, and a
 native macOS Notification Center banner with distinct sounds for normal vs. breach.
-Off-hours alerts also arrive as a Slack DM on your phone — via a personal Slack
-Workflow webhook, because a plain DM-to-self never triggers a Slack notification. Off-hours there's no SLA ladder — the 2-business-hour clock starts at 9am.
+Incident-stage items also arrive as a Slack DM on your phone — via a personal Slack
+Workflow webhook, because a plain DM-to-self never triggers a Slack notification.
+
+The shift is what you say it is. Per the Guidelines the Hero is not on-call, so there are
+no night or weekend jobs: if you stay assembled past 5pm the watch just keeps running
+normally; once you disassemble nothing runs, and anything that lands overnight or over the
+weekend gets its 2-business-hour clock at 9am the next working day.
 
 It never sends anything on your behalf — it drafts replies and recommends actions; the
 Hero sends.
@@ -40,9 +45,8 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
   `hooks.slack.com/triggers/...` URL to `~/.claude/hero-slack-webhook.url` and
   `chmod 600` it. Treat the URL like a credential (anyone holding it can DM you); never
   commit it. Without it, alerts fall back to email-to-self.
-- For overnight coverage: the Mac must stay awake — plug in and enable System Settings →
-  Battery → "Prevent automatic sleeping on power adapter when the display is off"
-  (or run `caffeinate -is`).
+- For a long or late shift: the Mac must stay awake or the watch silently stops firing —
+  keep the lid open, or run `caffeinate -is`.
 - macOS for the Notification Center banners (`osascript` — built in, nothing to install).
   On first use, allow notifications for your terminal app if prompted
   (System Settings → Notifications).
@@ -51,7 +55,7 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
 
 | You say | It does |
 |---|---|
-| `Avengers Assemble` | Full triage board + arms the watch (15-min weekdays 9am–5pm, 30-min nights/weekends) |
+| `Avengers Assemble` | Full triage board + arms the watch (every 15 min, weekdays, until you disassemble) |
 | `run hero triage` / `pull the security queue` | One-off sweep, no watch |
 | `show board` | Reprints the full three-section board mid-shift |
 | `that's informational` (about an item) | Reclassifies it, cancels its SLA clock and pending pings |
@@ -70,9 +74,10 @@ fire while the session is open.
   SLA clock until you confirm they're real escalations.
 - #idr-alerts works differently: there is no requester to reply to, so per the Guidelines
   the ack is an **emoji reaction** on the alert once you've looked at it. A bare alert is
-  unacked. Overnight, only CRITICAL alerts and host/data detections (Defender, GuardDuty,
-  malware, exfiltration, tunnels) ping your phone; noisy "Ingress Auth From Outside The
-  US" alerts wait for the morning board.
+  unacked. CRITICAL alerts and host/data detections (Defender, GuardDuty, malware,
+  exfiltration, tunnels) are full-volume; the known-noisy "Ingress Auth From Outside The
+  US" alerts still get the ladder but with low-key wording unless the evidence shows a
+  Red-list country or a non-employee account.
 
 ## Cautions
 

@@ -17,7 +17,8 @@ Pull the live escalation queue across all Hero channels, classify every item per
 and produce a triage board where every item links back to its source. **Never send any
 reply, email, or Slack message automatically** — recommend and draft only; the Hero sends.
 The single exception: a **Slack DM to the Hero themself** as an alert channel (see
-off-hours discipline below) — that is a notification to the user, not a reply to anyone.
+incident alerting under shift boundaries below) — that is a notification to the user, not a
+reply to anyone.
 
 **Guardrail — never quote raw detection strings in commands or notifications.** Every shell
 command you run is logged by EDR and matched against the same detection rules that feed
@@ -34,9 +35,11 @@ When the user opens with **"Avengers Assemble"** (any capitalization), they are 
 Hero shift, not asking for a one-off sweep. Do both, in this order:
 
 1. **Run the full triage now** (Steps 1–5 below) so they start the shift with a current board.
-2. **Arm the business-hours watch** with `CronCreate`:
-   - `cron`: `7,22,37,52 9-16 * * 1-5` — every 15 minutes, 9:07am through 4:52pm, weekdays.
-     The off-minutes are deliberate (they keep the job off the :00/:15/:30/:45 marks every
+2. **Arm the shift watch** with one `CronCreate`:
+   - `cron`: `7,22,37,52 * * * 1-5` — every 15 minutes, any hour, weekdays. There is no
+     5pm cutoff in the schedule on purpose: the shift ends when the Hero says
+     **disassemble**, not when the clock says so (see "Shift boundaries" below). The
+     off-minutes are deliberate (they keep the job off the :00/:15/:30/:45 marks every
      other scheduled job in the world lands on); do not "tidy" them.
    - `recurring`: `true`
    - `prompt`: `Run the infosec-hero-triage skill as a scheduled Hero check. Sweep all four
@@ -44,22 +47,17 @@ Hero shift, not asking for a one-off sweep. Do both, in this order:
      unacked item, an item newly inside 30 minutes of its 2-business-hour deadline, an item
      newly breaching it, or an apparent active incident. Do not re-notify about items already
      reported earlier this shift. If nothing changed, print the board and stay silent.`
-3. **Arm the off-hours watch** (nights + weekends, every 30 minutes) with two more
-   `CronCreate` jobs so the windows don't overlap:
-   - Nights, all days: `cron`: `9,39 0-8,17-23 * * *`
-   - Weekend daytime: `cron`: `9,39 9-16 * * 0,6`
-   - `recurring`: `true` on both, and the same prompt for both:
-     `Run the infosec-hero-triage skill as an OFF-HOURS Hero check. Narrow sweep of all
-     four channels. Follow the off-hours discipline in the skill: alert ONLY on a genuinely
-     new inbound item or an apparent active incident — no SLA ladder, no clocks. On an alert,
-     send the macOS banner AND a Slack DM to the Hero themself. If nothing new, print the
-     one-line quiet board and stay silent.`
-4. Report all returned job IDs back to the user and keep them for Step 0b.
+3. **Do not arm any night or weekend job.** Per the Guidelines the Hero role is not
+   on-call: requests that arrive outside working hours are triaged the next working
+   morning, and weekend arrivals belong to the new week's Hero at the start of Monday. The
+   Monday opening sweep (Step 1) covers the weekend; no watch runs while the Hero is
+   disassembled.
+4. Report the returned job ID back to the user and keep it for Step 0b.
 5. **Tell them plainly**: the watch is session-only (dies when this Claude Code session
-   closes — re-arm each morning with "Avengers Assemble"), and overnight coverage also
-   requires the Mac to stay awake: plugged in, with System Settings → Battery →
-   "Prevent automatic sleeping on power adapter when the display is off" enabled
-   (or `caffeinate -is` running). Remind them of this once per shift, not every run.
+   closes — re-arm each morning with "Avengers Assemble"), it auto-expires after 7 days,
+   and it keeps running past 5pm at the normal cadence until they say disassemble. If the
+   Mac sleeps mid-shift the job silently stops firing, so a long or late shift needs the
+   lid open or `caffeinate -is` running. Say this once per shift, not every run.
 
 Any other trigger phrase ("run hero triage", "pull the security queue", etc.) means a one-off
 sweep — run Steps 1–5 and do **not** arm anything.
@@ -67,9 +65,10 @@ sweep — run Steps 1–5 and do **not** arm anything.
 ### Step 0b — Stopping
 
 When the user says **stop**, **stand down**, **Avengers disassemble**, **end shift**, or
-otherwise indicates the shift is over: call `CronList` to find **all** hero jobs (business
-hours + both off-hours jobs), `CronDelete` each by ID, and confirm in one line that the
-watch is off. If no jobs are armed, say so rather than pretending to cancel one.
+otherwise indicates the shift is over: call `CronList` to find **every** hero job (normally
+one; more only if an older set is still around), `CronDelete` each by ID, and confirm in one
+line that the watch is off. If no jobs are armed, say so rather than pretending to cancel
+one. Once disassembled, nothing runs until the next "Avengers Assemble".
 
 Then **print the EOD closeout checklist** (doc step 5) from the shift ledger — this is
 automatic on stand-down, not optional:
@@ -124,25 +123,31 @@ clear or that a run completed.
 Keep the message under 200 characters, one line, no markdown, leading with the thing to act on:
 `2 unacked, oldest 1h50m: ORTC wire question in #support-security`. Not `triage complete`.
 
-### Off-hours discipline (nights and weekends)
+### Shift boundaries (the shift is what the Hero says it is)
 
-Outside business hours the SLA clock is not running — an item that lands at 11pm has its
-2-business-hour clock start at 9am the next business day. So off-hours runs are simpler
-and stricter:
+The Hero role is **not on-call** (Guidelines). A shift starts at "Avengers Assemble" and
+ends at "disassemble" — those two words define working hours for this skill, not the
+wall clock. Shifts are typically 9-to-5, but the Hero may keep the watch up later, and
+while it is up nothing changes:
 
-- Alert **only** on: a genuinely new inbound item, or an apparent active incident.
-  No approaching/breached stages, no tentative pings — chatter waits for morning.
-- **#idr-alerts off-hours:** the bot posts around the clock, so not every alert is a phone
-  ping. Alert on `CRITICAL` priority, and on any `HIGH` whose title points at a host or
-  data (Defender for Endpoint, GuardDuty, malware/process/exfiltration/tunnel titles).
-  `Ingress Auth From Outside The US` is known-noisy (mostly token refresh and approved
-  travel, see ISEC-2838) — off-hours it goes on the morning board only, no ping, unless
-  the first thread reply shows a Red-list country or a non-employee account.
-- Each alert states the real deadline: `clock starts 9:00am → ack by 11:00am`.
-- Alert delivery off-hours = macOS banner **plus a Slack DM to the Hero via their alert
-  webhook** (the phone channel). A plain Slack DM-to-self does NOT work — Slack never
-  push-notifies you about your own messages — so alerts go through a Slack Workflow
-  webhook whose bot message does notify. The Hero's webhook URL lives in
+- **After 5pm while still assembled: run normally.** Same 15-minute cadence, same
+  New → Under-30-min → Breached ladder, same clocks in real time. Do not switch to a
+  "quiet" mode or defer items to the morning just because it is evening. The Hero chose to
+  stay on; treat the queue exactly as at 2pm.
+- **While disassembled: nothing runs.** No night job, no weekend job, no pings. Items that
+  arrive then get their 2-business-hour clock at 9am the next working day (Monday for
+  weekend arrivals), and the opening sweep of the next shift picks them up — say the real
+  deadline on that board (`landed Sat 11pm → clock starts 9:00am → ack by 11:00am`).
+- **#idr-alerts noise note** (any hour): `Ingress Auth From Outside The US` is known-noisy
+  (mostly token refresh and approved travel, see ISEC-2838). It still gets the normal
+  ladder during a shift, but keep the ping wording low-key unless the first thread reply
+  shows a Red-list country or a non-employee account. `CRITICAL` priority and any `HIGH`
+  that points at a host or data (Defender for Endpoint, GuardDuty, malware/process/
+  exfiltration/tunnel titles) are always full-volume.
+- **Incident-stage items get a phone ping at any hour of the shift:** macOS banner
+  **plus a Slack DM to the Hero via their alert webhook**. A plain Slack DM-to-self does
+  NOT work — Slack never push-notifies you about your own messages — so it goes through
+  a Slack Workflow webhook whose bot message does notify. The Hero's webhook URL lives in
   `~/.claude/hero-slack-webhook.url` (chmod 600; it is a capability URL — treat it as a
   credential, never commit or print it). Send with:
 
@@ -157,11 +162,8 @@ and stricter:
   `send_message` (subject = the alert line), and tell them once how to set up the webhook
   (Slack Workflow Builder → trigger "From a webhook" with a `text` variable → step "Send a
   message" to themselves → publish → save the URL to that path). Never message anyone
-  else, never post in a channel.
-- Quiet off-hours runs print the one-line 🟢 board and send nothing anywhere.
-- Active incidents (executed wire fraud, confirmed compromise, ongoing attack) ignore all
-  of this: banner + DM + push immediately, any hour.
-- Slack-DM alerts also apply during business hours for **incident-stage** items only.
+  else, never post in a channel. Use the DM only for incident stage; New/Under-30/Breached
+  stay on banner + push.
 
 **Every push also posts a native macOS banner** so it lands even when the terminal is
 buried. Run via Bash, same discipline (only on stage crossings, never on quiet runs).
@@ -206,8 +208,9 @@ glance in a wall of quiet lines:
 🟠 **12:22pm** — ⏳ UNANSWERED: Marlon · Fig Title data exposure · #support-security · 1h20m left (1:42pm) → [jump](<link>) · nothing else new · in motion: SEC-1515 (you)
 ```
 
-Off-hours the same rule applies, with the morning deadline spelled out:
-`🟠 11:39pm — ⏳ UNANSWERED: Duncan · SOC 2 sharing request · #security · clock starts 9:00am, ack by 11:00am → [jump](<link>) · nothing else new`
+Late in a shift the same rule applies — a 7pm run looks exactly like a 2pm run. On the
+next shift's opening board, an item that landed while disassembled shows its real deadline:
+`🟠 9:05am — ⏳ UNANSWERED: Duncan · SOC 2 sharing request · #security · landed 9:29pm, clock started 9:00am, ack by 11:00am → [jump](<link>) · nothing else new`
 
 Two or more unanswered items: list each on its own ⏳ line under the 🟠 header line, oldest
 first. This is still a quiet run (no push, no banner) — it is repetition on the board only,
