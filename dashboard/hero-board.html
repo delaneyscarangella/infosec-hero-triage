@@ -276,57 +276,67 @@ details.closed > .lane { margin-top: 10px; }
     return c;
   }
 
+  function stamp(label, uid, when) {
+    const s = el("span", "acked", label);
+    const nm = el("span", null, "");
+    nm.dataset.uid = str(uid);
+    const at = toDate(when);
+    s.append(document.createTextNode(" by "), nm, document.createTextNode(at ? " at " + fmtTime(at) : ""));
+    return s;
+  }
+
+  function button(label, busyLabel, id, ghost, onClick, title) {
+    const b = el("button", ghost ? "btn ghost" : "btn", pending.has(id.slice(id.indexOf("-") + 1)) ? busyLabel : label);
+    b.type = "button"; b.id = id; b.disabled = pending.has(id.slice(id.indexOf("-") + 1));
+    if (title) b.title = title;
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
   function actionRow(it) {
     const k = lane(it);
     const row = el("div", "actions");
-    const busy = pending.has(it._id);
-    if (it.ackBy) {
-      const who = el("span", "acked", "Acknowledged");
-      const nm = el("span", null, "");
-      nm.dataset.uid = str(it.ackBy);
-      const at = toDate(it.ackAt);
-      who.append(document.createTextNode(" by "), nm, document.createTextNode(at ? " at " + fmtTime(at) : ""));
-      row.append(who);
-      if (db && canWrite !== false && meId && it.ackBy === meId && k !== "closed") {
-        const u = el("button", "btn ghost", busy ? "Undoing…" : "Undo");
-        u.type = "button"; u.id = "undo-" + it._id; u.disabled = busy;
-        u.addEventListener("click", () => undoAck(it));
-        row.append(u);
-      }
-      return row;
+    const writable = db && canWrite !== false;
+    if (it.ackBy) row.append(stamp("Acknowledged", it.ackBy, it.ackAt));
+    if (it.doneBy) row.append(stamp("Marked done", it.doneBy, it.doneAt));
+
+    if (writable && (k === "act" || k === "tent") && !it.ackBy) {
+      row.append(
+        button("Acknowledge", "Saving…", "ack-" + it._id, false, () => ack(it), "Marks it owned on the board and stops Hero pings. Still reply in the source thread."),
+        el("span", "note", "Stops pings. Still reply in the thread.")
+      );
     }
-    if ((k === "act" || k === "tent") && db && canWrite !== false) {
-      const b = el("button", "btn", busy ? "Saving…" : "Acknowledge");
-      b.type = "button"; b.id = "ack-" + it._id; b.disabled = busy;
-      b.title = "Marks it owned on the board and stops Hero pings. Still reply in the source thread.";
-      b.addEventListener("click", () => ack(it));
-      row.append(b, el("span", "note", "Stops pings. Still reply in the thread."));
-      return row;
+    if (writable && k === "motion") {
+      row.append(button("Mark done", "Saving…", "done-" + it._id, false, () => markDone(it), "Moves it to Closed. The next sweep leaves it closed."));
+      if (meId && it.ackBy === meId) row.append(button("Undo ack", "Undoing…", "undo-" + it._id, true, () => undoAck(it)));
     }
-    return null;
+    if (writable && k === "closed" && meId && it.doneBy === meId) {
+      row.append(button("Reopen", "Reopening…", "reopen-" + it._id, true, () => undoDone(it)));
+    }
+    return row.childNodes.length ? row : null;
   }
 
-  async function ack(it) {
+  async function write(it, fields) {
     if (pending.has(it._id)) return;
     pending.add(it._id); render();
-    try {
-      await db.doc("items/" + it._id).update({
-        state: "in_motion",
-        ackBy: meId,
-        ackAt: new Date().toISOString(),
-        ackFrom: str(it.state) || "unacked"
-      });
-    } catch (e) { onWriteError(e); }
+    try { await db.doc("items/" + it._id).update(fields); } catch (e) { onWriteError(e); }
     pending.delete(it._id); render();
   }
 
-  async function undoAck(it) {
-    if (pending.has(it._id)) return;
-    pending.add(it._id); render();
-    try {
-      await db.doc("items/" + it._id).update({ state: str(it.ackFrom) || "unacked", ackBy: null, ackAt: null, ackFrom: null });
-    } catch (e) { onWriteError(e); }
-    pending.delete(it._id); render();
+  function markDone(it) {
+    return write(it, { state: "closed", doneBy: meId, doneAt: new Date().toISOString(), doneFrom: str(it.state) || "in_motion" });
+  }
+
+  function undoDone(it) {
+    return write(it, { state: str(it.doneFrom) || "in_motion", doneBy: null, doneAt: null, doneFrom: null });
+  }
+
+  function ack(it) {
+    return write(it, { state: "in_motion", ackBy: meId, ackAt: new Date().toISOString(), ackFrom: str(it.state) || "unacked" });
+  }
+
+  function undoAck(it) {
+    return write(it, { state: str(it.ackFrom) || "unacked", ackBy: null, ackAt: null, ackFrom: null });
   }
 
   function onWriteError(e) {
@@ -367,7 +377,7 @@ details.closed > .lane { margin-top: 10px; }
     if (!entries) return;
     box.textContent = "";
     const t = todayKey();
-    for (const role of ["InfoSec", "Systems"]) {
+    for (const role of ["InfoSec"]) {
       const list = entries.filter((e) => e && e.role === role && /^\d{4}-\d{2}-\d{2}$/.test(str(e.start)) && /^\d{4}-\d{2}-\d{2}$/.test(str(e.end))).sort((a, b) => (a.start < b.start ? -1 : 1));
       const cur = list.find((e) => e.start <= t && t < e.end);
       const next = list.find((e) => e.start > t);

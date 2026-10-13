@@ -465,17 +465,30 @@ and nulls the three fields. On every run:
   from the stage it had already reached, without re-sending pings for stages it already
   triggered.
 
-**Rotation from the IT/Security Heroes calendar.** The banner's "InfoSec Hero" and
-"Systems Hero" lines come from `shift` / doc `rota`:
-`{syncedAt, calendar: "IT/Security Heroes", entries: [{role: "InfoSec"|"Systems", name, start: "YYYY-MM-DD", end: "YYYY-MM-DD"}]}`
+**Mark done button.** In-motion items have **Mark done**. A click writes
+`state: "closed"`, `doneBy`, `doneAt`, `doneFrom`. Reopen (only for the person who closed
+it) resets `state` to `doneFrom` and nulls the three fields. On every run:
+- An item with `doneBy` set is **closed on the Hero's word**. Show it under ✅ on the
+  terminal board (`marked done on board by <name>`) and add it to the EOD checklist's
+  "Jira → Done" line if it has a ticket.
+- **Never overwrite** `state`, `doneBy`, `doneAt`, or `doneFrom`, and never reopen it
+  yourself. If the requester posts again in the source thread after `doneAt`, say so once
+  on the terminal board (`new reply after it was marked done → [jump]`) and let the Hero
+  decide.
+- At "Avengers Assemble", closed items are cleared by the later of `updated` and
+  `doneAt`.
+
+**Rotation from the IT/Security Heroes calendar.** The banner's "InfoSec Hero" line
+comes from `shift` / doc `rota`:
+`{syncedAt, calendar: "IT/Security Heroes", entries: [{role: "InfoSec", name, start: "YYYY-MM-DD", end: "YYYY-MM-DD"}]}`
 (`end` is exclusive, matching Google all-day events). On every **"Avengers Assemble"**:
 1. Google Calendar `list_events` on calendarId
    `c_ge2mrmdjhido86ct44o1il4i30@group.calendar.google.com` from 7 days ago to 8 weeks ahead,
    `orderBy: startTime`. If the ID fails, find it with `list_calendars` (summary
    `IT/Security Heroes`).
-2. Keep only events titled `<Name> InfoSec Hero` (role `InfoSec`) or `<Name> Systems Hero`
-   (role `Systems`). Take `name` from the title and the dates from the all-day
-   `start.date`/`end.date`. Skip cancelled events.
+2. Keep only events titled `<Name> InfoSec Hero` (role `InfoSec`). Ignore the
+   `Systems Hero` events on the same calendar. Take `name` from the title and the dates
+   from the all-day `start.date`/`end.date`. Skip cancelled events.
 3. `set` `shift/rota` with the full list (pin `if_version` from the `get`). Replace the
    list each time. Don't merge.
 4. If the calendar's InfoSec Hero for today isn't the person assembling, mention it once on

@@ -88,8 +88,11 @@ Rapid7 investigation, or Jira ticket.
   unacked or tentative item. That marks it owned (with your name), stops the Hero's
   pings for it, and shows up live for everyone. Only the person who acked it can Undo.
   It doesn't reply to the requester, so still answer in the source thread or email.
-- **Rotation:** the banner shows this week's InfoSec Hero and Systems Hero from the
-  **IT/Security Heroes** Google Calendar, plus who's next. It re-syncs on every
+- **Mark done button:** in-motion items have **Mark done**, which moves them to Closed
+  for everyone. Sweeps never reopen it. If the requester writes again, the Hero's
+  terminal flags it once. Only the person who closed it can Reopen.
+- **Rotation:** the banner shows this week's InfoSec Hero from the **IT/Security Heroes**
+  Google Calendar, plus who's next. It re-syncs on every
   "Avengers Assemble". To change who's on, edit the calendar.
 - **Taking over:** whoever says "Avengers Assemble" takes the board over. Open items from
   the previous Hero stay on it. Closed items from earlier days are cleared at shift start.
