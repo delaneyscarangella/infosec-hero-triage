@@ -84,6 +84,13 @@ Rapid7 investigation, or Jira ticket.
   banner shows "No Hero on watch". If the last sweep is over 25 minutes old during a
   shift, the banner turns amber because the watch has probably stopped (laptop asleep or
   session closed).
+- **Acknowledge button:** anyone with Contributor access can click **Acknowledge** on an
+  unacked or tentative item. That marks it owned (with your name), stops the Hero's
+  pings for it, and shows up live for everyone. Only the person who acked it can Undo.
+  It doesn't reply to the requester, so still answer in the source thread or email.
+- **Rotation:** the banner shows this week's InfoSec Hero and Systems Hero from the
+  **IT/Security Heroes** Google Calendar, plus who's next. It re-syncs on every
+  "Avengers Assemble". To change who's on, edit the calendar.
 - **Taking over:** whoever says "Avengers Assemble" takes the board over. Open items from
   the previous Hero stay on it. Closed items from earlier days are cleared at shift start.
 - **Requirements:** the same skill version as everyone else (reinstall from this repo

@@ -98,6 +98,14 @@ h2 { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacin
 .t-warn { color: var(--warn); font-weight: 600; }
 .t-ok { color: var(--muted); }
 
+.item .actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.btn { font: inherit; font-size: 0.85rem; font-weight: 600; border-radius: 6px; padding: 5px 14px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:disabled { opacity: 0.55; cursor: progress; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.acked { font-size: 0.85rem; color: var(--ok); font-weight: 600; }
+.rota { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 0.85rem; color: var(--muted); }
+.rota b { color: var(--ink); font-weight: 600; }
 .note { color: var(--muted); font-size: 0.8rem; }
 details.closed summary { cursor: pointer; list-style: none; }
 details.closed summary::-webkit-details-marker { display: none; }
@@ -117,6 +125,7 @@ details.closed > .lane { margin-top: 10px; }
   </header>
 
   <section class="shift" aria-label="Shift status">
+    <div class="rota" id="rota"><span>Rotation loads from the IT/Security Heroes calendar.</span></div>
     <div class="who"><span class="dot" id="shift-dot"></span><span id="shift-who">Waiting for the first sweep</span></div>
     <div class="meta mono" id="shift-meta">The board fills in when a Hero says "Avengers Assemble".</div>
     <div class="line" id="shift-line" hidden></div>
@@ -162,7 +171,13 @@ details.closed > .lane { margin-top: 10px; }
   const STALE_MIN = 25;
   let items = [];
   let shift = null;
+  let rota = null;
   let filter = "all";
+  let db = null;
+  let user = null;
+  let meId = null;
+  let canWrite = null;
+  const pending = new Set();
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -253,9 +268,118 @@ details.closed > .lane { margin-top: 10px; }
     }
     if (lk.childNodes.length) c.append(lk);
 
+    const actions = actionRow(it);
+    if (actions) c.append(actions);
+
     const upd = toDate(it.updated);
     if (upd) c.append(el("div", "stamp mono", "updated " + fmtWhen(upd) + (it.updatedBy ? " by " + str(it.updatedBy) + "'s sweep" : "")));
     return c;
+  }
+
+  function actionRow(it) {
+    const k = lane(it);
+    const row = el("div", "actions");
+    const busy = pending.has(it._id);
+    if (it.ackBy) {
+      const who = el("span", "acked", "Acknowledged");
+      const nm = el("span", null, "");
+      nm.dataset.uid = str(it.ackBy);
+      const at = toDate(it.ackAt);
+      who.append(document.createTextNode(" by "), nm, document.createTextNode(at ? " at " + fmtTime(at) : ""));
+      row.append(who);
+      if (db && canWrite !== false && meId && it.ackBy === meId && k !== "closed") {
+        const u = el("button", "btn ghost", busy ? "Undoing…" : "Undo");
+        u.type = "button"; u.id = "undo-" + it._id; u.disabled = busy;
+        u.addEventListener("click", () => undoAck(it));
+        row.append(u);
+      }
+      return row;
+    }
+    if ((k === "act" || k === "tent") && db && canWrite !== false) {
+      const b = el("button", "btn", busy ? "Saving…" : "Acknowledge");
+      b.type = "button"; b.id = "ack-" + it._id; b.disabled = busy;
+      b.title = "Marks it owned on the board and stops Hero pings. Still reply in the source thread.";
+      b.addEventListener("click", () => ack(it));
+      row.append(b, el("span", "note", "Stops pings. Still reply in the thread."));
+      return row;
+    }
+    return null;
+  }
+
+  async function ack(it) {
+    if (pending.has(it._id)) return;
+    pending.add(it._id); render();
+    try {
+      await db.doc("items/" + it._id).update({
+        state: "in_motion",
+        ackBy: meId,
+        ackAt: new Date().toISOString(),
+        ackFrom: str(it.state) || "unacked"
+      });
+    } catch (e) { onWriteError(e); }
+    pending.delete(it._id); render();
+  }
+
+  async function undoAck(it) {
+    if (pending.has(it._id)) return;
+    pending.add(it._id); render();
+    try {
+      await db.doc("items/" + it._id).update({ state: str(it.ackFrom) || "unacked", ackBy: null, ackAt: null, ackFrom: null });
+    } catch (e) { onWriteError(e); }
+    pending.delete(it._id); render();
+  }
+
+  function onWriteError(e) {
+    const code = e && e.code;
+    if (code === "invalid_argument") { canWrite = false; $("status-note").textContent = "You have view-only access, so you can't acknowledge items. Ask the board owner for Contributor access."; }
+    else { $("status-note").textContent = "Couldn't save that. Check your connection and try again."; }
+  }
+
+  async function resolveNames() {
+    const spans = Array.from(document.querySelectorAll("[data-uid]"));
+    if (!spans.length) return;
+    const ids = [...new Set(spans.map((s) => s.dataset.uid).filter(Boolean))];
+    let ps = {};
+    if (user && ids.length) ps = await user.profiles(ids);
+    for (const s of spans) {
+      const p = ps[s.dataset.uid];
+      s.textContent = p && p.isMe ? "you" : (p && p.name) || "a teammate";
+    }
+  }
+
+  const todayKey = () => {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  };
+  const dayLabel = (key) => {
+    const [y, m, d] = String(key).split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString([], { month: "short", day: "numeric" });
+  };
+  const lastDay = (endKey) => {
+    const [y, m, d] = String(endKey).split("-").map(Number);
+    const x = new Date(y, m - 1, d - 1);
+    return x.toLocaleDateString([], { month: "short", day: "numeric" });
+  };
+
+  function renderRota() {
+    const box = $("rota");
+    const entries = rota && Array.isArray(rota.entries) ? rota.entries : null;
+    if (!entries) return;
+    box.textContent = "";
+    const t = todayKey();
+    for (const role of ["InfoSec", "Systems"]) {
+      const list = entries.filter((e) => e && e.role === role && /^\d{4}-\d{2}-\d{2}$/.test(str(e.start)) && /^\d{4}-\d{2}-\d{2}$/.test(str(e.end))).sort((a, b) => (a.start < b.start ? -1 : 1));
+      const cur = list.find((e) => e.start <= t && t < e.end);
+      const next = list.find((e) => e.start > t);
+      const span = el("span");
+      span.append(document.createTextNode(role + " Hero: "));
+      span.append(el("b", null, cur ? str(cur.name) : "nobody scheduled"));
+      if (cur) span.append(document.createTextNode(" through " + lastDay(cur.end)));
+      if (next) span.append(document.createTextNode(" · next " + str(next.name) + " from " + dayLabel(next.start)));
+      box.append(span);
+    }
+    const synced = toDate(rota.syncedAt);
+    if (synced) box.append(el("span", null, "from the IT/Security Heroes calendar, synced " + fmtWhen(synced)));
   }
 
   function renderFilters() {
@@ -279,7 +403,7 @@ details.closed > .lane { margin-top: 10px; }
     const on = shift.status === "on";
     const stale = on && last && (now - last) > STALE_MIN * 60000;
     dot.classList.add(on ? (stale ? "stale" : "on") : "off");
-    who.textContent = on ? (str(shift.hero) || "A Hero") + " is on shift" : "No Hero on watch" + (shift.hero ? " · last: " + str(shift.hero) : "");
+    who.textContent = on ? "Watch running · " + (str(shift.hero) || "a Hero") + "'s session" : "No watch running" + (shift.hero ? " · last: " + str(shift.hero) : "");
     const parts = [];
     if (on && shift.assembledAt && toDate(shift.assembledAt)) parts.push("assembled " + fmtWhen(toDate(shift.assembledAt)));
     if (!on && shift.disassembledAt && toDate(shift.disassembledAt)) parts.push("disassembled " + fmtWhen(toDate(shift.disassembledAt)));
@@ -293,6 +417,7 @@ details.closed > .lane { margin-top: 10px; }
     const now = new Date();
     $("now").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " · " + fmtTime(now);
     renderShift(now);
+    renderRota();
     const groups = { act: [], tent: [], motion: [], closed: [] };
     for (const it of items) groups[lane(it)].push(it);
     for (const k of Object.keys(groups)) $("n-" + k).textContent = groups[k].length;
@@ -320,6 +445,7 @@ details.closed > .lane { margin-top: 10px; }
       for (const it of shown) g.append(card(it, now));
       host.append(g);
     }
+    resolveNames();
   }
 
   renderFilters();
@@ -327,8 +453,15 @@ details.closed > .lane { margin-top: 10px; }
   setInterval(render, 30000);
 
   (async () => {
-    const db = await (window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null));
+    const use = (n) => (window.claude && window.claude.use ? window.claude.use(n) : Promise.resolve(null));
+    db = await use("db");
     if (!db) { $("status-note").textContent = "Live data isn't available in this view. Open the board on claude.ai while signed in."; return; }
+    user = await use("user");
+    if (user) {
+      meId = await user.id();
+      canWrite = await user.can("data.write");
+    }
+    if (!meId) canWrite = false;
     const onErr = () => { $("status-note").textContent = "Lost the live connection. Reload the page to reconnect."; };
     db.collection("items").onSnapshot((snap) => {
       items = snap.docs.filter((d) => d.exists).map((d) => Object.assign({ _id: d.id }, d.data()));
@@ -336,6 +469,10 @@ details.closed > .lane { margin-top: 10px; }
     }, onErr);
     db.doc("shift/current").onSnapshot((snap) => {
       shift = snap.exists ? snap.data() : null;
+      render();
+    }, onErr);
+    db.doc("shift/rota").onSnapshot((snap) => {
+      rota = snap.exists ? snap.data() : null;
       render();
     }, onErr);
   })();
