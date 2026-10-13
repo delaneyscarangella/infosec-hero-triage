@@ -65,6 +65,32 @@ Restart (or start) a Claude Code session and say **"Avengers Assemble"**.
 session kills it silently. Re-arm each shift with "Avengers Assemble". Notifications only
 fire while the session is open.
 
+## Live Hero Board (shared dashboard)
+
+**[InfoSec Hero Board](https://claude.ai/artifact/TQYGPeVcNQwaivnbB66ded)** is a live page
+that shows the same board as the terminal: who is on shift, when the last sweep ran, the
+items waiting on the Hero with countdowns to their 2-business-hour deadline, tentative
+items, items in motion, and items closed today. Every item links back to its source thread,
+Rapid7 investigation, or Jira ticket.
+
+- **How it updates:** the Hero on shift writes to it from their own Claude Code session on
+  every sweep (Step 5b in SKILL.md). There is no server and no service account. The page
+  is a private claude.ai Artifact with a small built-in database, and it updates live
+  while it's open.
+- **Who can see it:** only the InfoSec team. Each Hero must be shared on it as a
+  **Contributor** (Contributors can write; Viewers cannot, and their sweeps would fail to
+  update it). Don't widen access: rows include customer and employee names.
+- **When it's live:** only while someone is assembled. When the Hero disassembles, the
+  banner shows "No Hero on watch". If the last sweep is over 25 minutes old during a
+  shift, the banner turns amber because the watch has probably stopped (laptop asleep or
+  session closed).
+- **Taking over:** whoever says "Avengers Assemble" takes the board over. Open items from
+  the previous Hero stay on it. Closed items from earlier days are cleared at shift start.
+- **Requirements:** the same skill version as everyone else (reinstall from this repo
+  after pulling), and a Claude Code build with the `ArtifactData` tool.
+- **Page source:** `dashboard/hero-board.html`. To change the page, edit it and republish
+  to the same URL (owner or Editor only).
+
 ## What the notifications look like
 
 - Quiet runs print one line (`🟢 12:22pm — no change …`) and never notify.

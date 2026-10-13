@@ -1,0 +1,343 @@
+<title>InfoSec Hero Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single-column watch-floor board. A shift strip on top, a tally row, then lanes ordered by urgency (act now, tentative, in motion, closed). */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --ink: #17212b;
+  --muted: #5b6876;
+  --line: #d5dce3;
+  --accent: #1f5f8b;
+  --crit: #b4232a;
+  --crit-bg: #fbe9ea;
+  --warn: #9a5b00;
+  --warn-bg: #fdf1dc;
+  --ok: #23724a;
+  --ok-bg: #e3f3ea;
+  --info: #3c5a9a;
+  --info-bg: #e7ecf8;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --surface: #17202a; --ink: #e4eaf0; --muted: #94a3b2; --line: #2a3644;
+    --accent: #6fb0dd; --crit: #ff7a7f; --crit-bg: #3a1c20; --warn: #f0b552; --warn-bg: #3a2c14;
+    --ok: #6fcf98; --ok-bg: #16301f; --info: #9db4ec; --info-bg: #1d2740; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --ink: #e4eaf0; --muted: #94a3b2; --line: #2a3644;
+  --accent: #6fb0dd; --crit: #ff7a7f; --crit-bg: #3a1c20; --warn: #f0b552; --warn-bg: #3a2c14;
+  --ok: #6fcf98; --ok-bg: #16301f; --info: #9db4ec; --info-bg: #1d2740; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+h1, h2 { font-family: var(--font-display); font-stretch: 85%; margin: 0; text-wrap: balance; }
+h1 { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.top .sub { color: var(--muted); font-size: 0.85rem; }
+
+.shift { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
+.shift .who { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.on { background: var(--ok); box-shadow: 0 0 0 4px var(--ok-bg); }
+.dot.stale { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-bg); }
+.shift .meta { color: var(--muted); font-size: 0.85rem; }
+.shift .line { flex-basis: 100%; min-width: 0; font-size: 0.9rem; border-top: 1px dashed var(--line); padding-top: 10px; overflow-wrap: anywhere; }
+
+.tally { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .tally { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.tile .n { font-family: var(--font-display); font-weight: 800; font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .l { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+.tile.crit .n { color: var(--crit); }
+.tile.warn .n { color: var(--warn); }
+.tile.info .n { color: var(--info); }
+.tile.ok .n { color: var(--ok); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: inherit; font-size: 0.82rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.chip:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.lane { display: grid; gap: 10px; }
+.lane .count { font-family: var(--font-mono); font-weight: 500; color: var(--muted); font-size: 0.85rem; letter-spacing: 0; }
+.empty { color: var(--muted); font-size: 0.9rem; padding: 12px 16px; border: 1px dashed var(--line); border-radius: 10px; }
+
+.item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; }
+.item.breached { border-color: var(--crit); }
+.item.incident { border-color: var(--crit); box-shadow: inset 4px 0 0 var(--crit); }
+.item .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
+.item .title { font-weight: 600; overflow-wrap: anywhere; }
+.item .src { color: var(--muted); font-size: 0.82rem; }
+.item .clock { text-align: right; font-family: var(--font-mono); font-size: 0.85rem; white-space: nowrap; }
+.item .body { grid-column: 1 / -1; min-width: 0; display: grid; gap: 4px; font-size: 0.9rem; }
+.item .body p { margin: 0; overflow-wrap: anywhere; }
+.item .next { color: var(--muted); }
+.item .next b { color: var(--ink); font-weight: 600; }
+.item .links { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.85rem; }
+.item .links a { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; }
+.item .stamp { grid-column: 1 / -1; color: var(--muted); font-size: 0.75rem; }
+
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; padding: 1px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.pill.crit { background: var(--crit-bg); color: var(--crit); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.ok { background: var(--ok-bg); color: var(--ok); }
+.pill.info { background: var(--info-bg); color: var(--info); }
+.pill.plain { background: var(--bg); color: var(--muted); }
+.t-crit { color: var(--crit); font-weight: 600; }
+.t-warn { color: var(--warn); font-weight: 600; }
+.t-ok { color: var(--muted); }
+
+.note { color: var(--muted); font-size: 0.8rem; }
+details.closed summary { cursor: pointer; list-style: none; }
+details.closed summary::-webkit-details-marker { display: none; }
+details.closed summary h2::after { content: "▸"; font-size: 0.8rem; color: var(--muted); }
+details.closed[open] summary h2::after { content: "▾"; }
+details.closed > .lane { margin-top: 10px; }
+@media (prefers-reduced-motion: no-preference) { .dot.on { transition: box-shadow 0.3s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>InfoSec Hero Board</h1>
+      <div class="sub">security@ · #security · #support-security · #idr-alerts — 2-business-hour ack clock</div>
+    </div>
+    <div class="sub mono" id="now"></div>
+  </header>
+
+  <section class="shift" aria-label="Shift status">
+    <div class="who"><span class="dot" id="shift-dot"></span><span id="shift-who">Waiting for the first sweep</span></div>
+    <div class="meta mono" id="shift-meta">The board fills in when a Hero says "Avengers Assemble".</div>
+    <div class="line" id="shift-line" hidden></div>
+  </section>
+
+  <section class="tally" aria-label="Counts">
+    <div class="tile crit"><div class="n mono" id="n-act">0</div><div class="l">Needs Hero now</div></div>
+    <div class="tile warn"><div class="n mono" id="n-tent">0</div><div class="l">Tentative</div></div>
+    <div class="tile info"><div class="n mono" id="n-motion">0</div><div class="l">In motion</div></div>
+    <div class="tile ok"><div class="n mono" id="n-closed">0</div><div class="l">Closed</div></div>
+  </section>
+
+  <nav class="filters" aria-label="Filter by channel" id="filters"></nav>
+
+  <section class="lane" aria-labelledby="h-act">
+    <h2 id="h-act">Needs Hero action <span class="count" id="c-act"></span></h2>
+    <div id="l-act"></div>
+  </section>
+  <section class="lane" aria-labelledby="h-tent">
+    <h2 id="h-tent">Tentative · classify first <span class="count" id="c-tent"></span></h2>
+    <div id="l-tent"></div>
+  </section>
+  <section class="lane" aria-labelledby="h-motion">
+    <h2 id="h-motion">In motion · monitor <span class="count" id="c-motion"></span></h2>
+    <div id="l-motion"></div>
+  </section>
+  <details class="closed" id="closed-wrap">
+    <summary><h2>Closed · verify at EOD <span class="count" id="c-closed"></span></h2></summary>
+    <section class="lane" id="l-closed"></section>
+  </details>
+
+  <p class="note" id="status-note">Updated by the hero-triage skill on every 15-minute sweep. Nothing here sends replies; ack in the source thread.</p>
+</div>
+
+<script>
+(() => {
+  const CHANNELS = {
+    "email": "security@",
+    "security": "#security",
+    "support-security": "#support-security",
+    "idr-alerts": "#idr-alerts"
+  };
+  const STALE_MIN = 25;
+  let items = [];
+  let shift = null;
+  let filter = "all";
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const toDate = (v) => { if (!v) return null; const d = new Date(v); return isNaN(d) ? null : d; };
+  const fmtTime = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const fmtWhen = (d) => {
+    const today = new Date();
+    const same = d.toDateString() === today.toDateString();
+    return same ? fmtTime(d) : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " " + fmtTime(d);
+  };
+  const fmtDur = (ms) => {
+    const m = Math.round(Math.abs(ms) / 60000);
+    if (m < 60) return m + "m";
+    const h = Math.floor(m / 60), r = m % 60;
+    return h + "h" + (r ? String(r).padStart(2, "0") + "m" : "");
+  };
+  const safeUrl = (u) => {
+    try { const x = new URL(String(u)); return x.protocol === "https:" ? x.href : null; } catch { return null; }
+  };
+  const str = (v) => (v == null ? "" : String(v));
+
+  function lane(it) {
+    const s = str(it.state);
+    if (s === "closed") return "closed";
+    if (s === "in_motion") return "motion";
+    if (s === "tentative") return "tent";
+    return "act";
+  }
+
+  function clockCell(it, now) {
+    const box = el("div", "clock");
+    const dl = toDate(it.deadline);
+    const k = lane(it);
+    if (k === "closed") { box.append(el("span", "pill ok", "closed")); return { box, breached: false }; }
+    if (k === "motion") { box.append(el("span", "pill info", "owned")); return { box, breached: false }; }
+    if (k === "tent") { box.append(el("span", "pill warn", "no clock yet")); return { box, breached: false }; }
+    if (!dl) { box.append(el("span", "pill plain", "no deadline")); return { box, breached: false }; }
+    const left = dl - now;
+    let cls = "t-ok", label;
+    if (left < 0) { cls = "t-crit"; label = "BREACHED " + fmtDur(left) + " ago"; }
+    else if (left <= 30 * 60000) { cls = "t-warn"; label = fmtDur(left) + " left"; }
+    else if (toDate(it.clockStart) && now < toDate(it.clockStart)) { label = "clock starts " + fmtWhen(toDate(it.clockStart)); }
+    else { label = fmtDur(left) + " left"; }
+    box.append(el("div", cls, label), el("div", "note", "ack by " + fmtWhen(dl)));
+    return { box, breached: left < 0 };
+  }
+
+  function card(it, now) {
+    const c = el("article", "item");
+    const head = el("div", "head");
+    if (it.incident) head.append(el("span", "pill crit", "incident"));
+    if (it.priority) {
+      const p = str(it.priority).toUpperCase();
+      head.append(el("span", "pill " + (p === "CRITICAL" || p === "HIGH" ? "crit" : p === "MEDIUM" ? "warn" : "plain"), p));
+    }
+    head.append(el("span", "title", str(it.title) || "Untitled item"));
+    const landed = toDate(it.landed);
+    const src = [CHANNELS[it.channel] || str(it.channel), str(it.who), landed ? "landed " + fmtWhen(landed) : ""].filter(Boolean).join(" · ");
+    head.append(el("span", "src", src));
+    const { box, breached } = clockCell(it, now);
+    if (breached) c.classList.add("breached");
+    if (it.incident) c.classList.add("incident");
+    c.append(head, box);
+
+    const body = el("div", "body");
+    if (it.summary) body.append(el("p", null, str(it.summary)));
+    if (it.next || it.owner) {
+      const n = el("p", "next");
+      if (it.owner) { n.append(el("b", null, "Owner: " + str(it.owner))); if (it.next) n.append(document.createTextNode(" · ")); }
+      if (it.next) n.append(document.createTextNode(str(it.next)));
+      body.append(n);
+    }
+    if (body.childNodes.length) c.append(body);
+
+    const links = Array.isArray(it.links) ? it.links : [];
+    const lk = el("div", "links");
+    for (const l of links) {
+      const u = safeUrl(l && l.url);
+      if (!u) continue;
+      const a = el("a", null, str(l.label) || "Open");
+      a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer";
+      lk.append(a);
+    }
+    if (lk.childNodes.length) c.append(lk);
+
+    const upd = toDate(it.updated);
+    if (upd) c.append(el("div", "stamp mono", "updated " + fmtWhen(upd) + (it.updatedBy ? " by " + str(it.updatedBy) + "'s sweep" : "")));
+    return c;
+  }
+
+  function renderFilters() {
+    const f = $("filters");
+    f.textContent = "";
+    const opts = [["all", "All channels"], ...Object.entries(CHANNELS)];
+    for (const [k, label] of opts) {
+      const b = el("button", "chip", label);
+      b.type = "button"; b.id = "f-" + k;
+      b.setAttribute("aria-pressed", String(filter === k));
+      b.addEventListener("click", () => { filter = k; renderFilters(); render(); });
+      f.append(b);
+    }
+  }
+
+  function renderShift(now) {
+    const dot = $("shift-dot"), who = $("shift-who"), meta = $("shift-meta"), line = $("shift-line");
+    dot.className = "dot";
+    if (!shift) return;
+    const last = toDate(shift.lastSweep);
+    const on = shift.status === "on";
+    const stale = on && last && (now - last) > STALE_MIN * 60000;
+    dot.classList.add(on ? (stale ? "stale" : "on") : "off");
+    who.textContent = on ? (str(shift.hero) || "A Hero") + " is on shift" : "No Hero on watch" + (shift.hero ? " · last: " + str(shift.hero) : "");
+    const parts = [];
+    if (on && shift.assembledAt && toDate(shift.assembledAt)) parts.push("assembled " + fmtWhen(toDate(shift.assembledAt)));
+    if (!on && shift.disassembledAt && toDate(shift.disassembledAt)) parts.push("disassembled " + fmtWhen(toDate(shift.disassembledAt)));
+    if (last) parts.push("last sweep " + fmtTime(last) + " (" + fmtDur(now - last) + " ago)");
+    if (stale) parts.push("watch may have stopped (laptop asleep or session closed)");
+    meta.textContent = parts.join(" · ");
+    if (shift.line) { line.hidden = false; line.textContent = str(shift.line); } else { line.hidden = true; }
+  }
+
+  function render() {
+    const now = new Date();
+    $("now").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " · " + fmtTime(now);
+    renderShift(now);
+    const groups = { act: [], tent: [], motion: [], closed: [] };
+    for (const it of items) groups[lane(it)].push(it);
+    for (const k of Object.keys(groups)) $("n-" + k).textContent = groups[k].length;
+
+    const byDeadline = (a, b) => (toDate(a.deadline) || Infinity) - (toDate(b.deadline) || Infinity);
+    const byLanded = (a, b) => (toDate(a.landed) || 0) - (toDate(b.landed) || 0);
+    groups.act.sort((a, b) => (b.incident ? 1 : 0) - (a.incident ? 1 : 0) || byDeadline(a, b));
+    groups.tent.sort(byLanded);
+    groups.motion.sort(byLanded);
+    groups.closed.sort((a, b) => (toDate(b.updated) || 0) - (toDate(a.updated) || 0));
+
+    const emptyText = {
+      act: "Nothing waiting on the Hero.",
+      tent: "No borderline items to classify.",
+      motion: "Nothing owned and in progress.",
+      closed: "Nothing closed yet this shift."
+    };
+    for (const k of Object.keys(groups)) {
+      const host = $("l-" + k);
+      host.textContent = "";
+      const shown = groups[k].filter((it) => filter === "all" || it.channel === filter);
+      $("c-" + k).textContent = shown.length ? "(" + shown.length + ")" : "";
+      if (!shown.length) { host.append(el("div", "empty", filter === "all" ? emptyText[k] : "None in " + CHANNELS[filter] + ".")); continue; }
+      const g = el("div", "lane");
+      for (const it of shown) g.append(card(it, now));
+      host.append(g);
+    }
+  }
+
+  renderFilters();
+  render();
+  setInterval(render, 30000);
+
+  (async () => {
+    const db = await (window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null));
+    if (!db) { $("status-note").textContent = "Live data isn't available in this view. Open the board on claude.ai while signed in."; return; }
+    const onErr = () => { $("status-note").textContent = "Lost the live connection. Reload the page to reconnect."; };
+    db.collection("items").onSnapshot((snap) => {
+      items = snap.docs.filter((d) => d.exists).map((d) => Object.assign({ _id: d.id }, d.data()));
+      render();
+    }, onErr);
+    db.doc("shift/current").onSnapshot((snap) => {
+      shift = snap.exists ? snap.data() : null;
+      render();
+    }, onErr);
+  })();
+})();
+</script>
