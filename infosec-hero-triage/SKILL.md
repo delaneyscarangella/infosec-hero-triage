@@ -377,6 +377,23 @@ Also flag, per step 3–4 of the doc:
 - If anyone asks whether a message is a **phishing simulation**: never confirm or deny;
   direct them to report via the Phish Alert Button (orange hook icon in Gmail).
 
+## Step 4b — Route & research new items (if the router is installed)
+
+If `~/.claude/skills/security-channel-router/references/routes.md` exists, read it once
+per shift and apply it to each **new** item from email, #security and #support-security
+(not #idr-alerts). It sorts the item into a category, researches the answer with every
+tool rather than just the thread, and produces a short draft with a source for every fact.
+If the file is missing, skip this step: Step 4 alone is enough.
+
+- **Notify first, research after.** Run Step 4b only after any push for that item has gone
+  out. It must never delay a notification or the 2-hour clock.
+- **Research each item once.** Save the result to
+  `~/.claude/state/hero-triage/routes/<board doc_id>.md` and reuse it on later sweeps.
+  Redo it only if the thread gets a new message from the requester.
+- Tentative items (chatter, news) stop at the category. No research, no draft.
+- The draft rules in routes.md apply strictly. Never claim an action unless it is
+  documented procedure or already done.
+
 ## Step 5 — Output the triage board
 
 Render three sections, every item carrying a **source link**:
@@ -384,7 +401,8 @@ Render three sections, every item carrying a **source link**:
 1. **🔴 Needs Hero action now** — unacknowledged or awaiting a Hero reply. For each:
    who/what/when, classification + doc step, time remaining on (or overrun of) the
    2-business-hour clock, recommended action, and a suggested draft reply the Hero can
-   copy. Order by clock urgency.
+   copy. When Step 4b ran, use its output block (category, Found, Unverified, Draft,
+   Hero to confirm) in place of the free-form draft. Order by clock urgency.
 2. **🟡 In motion — monitor** — picked up by a named owner. Show owner, Jira link, and
    what the next checkpoint is.
 3. **✅ Closed / verify at end-of-day** — resolved items to confirm during the daily
@@ -432,7 +450,7 @@ on first use) with `url` = the board link above. Two collections:
   | `priority` | IDR priority (`HIGH`, `CRITICAL`); omit otherwise |
   | `incident` | `true` only for incident-stage items |
   | `summary` | 1–2 plain lines: what it is, why it matters |
-  | `next` | recommended action or next checkpoint |
+  | `next` | recommended action or next checkpoint. After Step 4b, prefix it with `Router: <category> · draft in terminal` (never put findings or the draft itself on the board) |
   | `links` | `[{label, url}]`: source permalink, Rapid7 investigation, Jira, all `https://` |
   | `updated`, `updatedBy` | ISO time of this write, Hero's first name |
 
